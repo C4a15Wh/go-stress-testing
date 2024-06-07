@@ -33,6 +33,70 @@ func (c *CURL) getDataValue(keys []string) []string {
 	return value
 }
 
+// ParseTheStr 从字符串中解析curl
+func ParseTheStr(data string) (curl *CURL, err error) {
+	if data == "" {
+		err = errors.New("字符串不能为空")
+		return
+	}
+	curl = &CURL{
+		Data: make(map[string][]string),
+	}
+	for len(data) > 0 {
+		if strings.HasPrefix(data, "curl") {
+			data = data[5:]
+		}
+		data = strings.TrimSpace(data)
+		var (
+			key   string
+			value string
+		)
+		index := strings.Index(data, " ")
+		if index <= 0 {
+			break
+		}
+		key = strings.TrimSpace(data[:index])
+		data = data[index+1:]
+		data = strings.TrimSpace(data)
+		// url
+		if !strings.HasPrefix(key, "-") {
+			key = strings.Trim(key, "'")
+			curl.Data["curl"] = []string{key}
+			// 去除首尾空格
+			data = removeSpaces(data)
+			continue
+		}
+		if strings.HasPrefix(data, "-") {
+			continue
+		}
+		var (
+			endSymbol = " "
+		)
+		if strings.HasPrefix(data, "'") {
+			endSymbol = "'"
+			data = data[1:]
+		}
+		index = strings.Index(data, endSymbol)
+		if index <= -1 {
+			index = len(data)
+			// break
+		}
+		value = data[:index]
+		if len(data) >= index+1 {
+			data = data[index+1:]
+		} else {
+			data = ""
+		}
+		// 去除首尾空格
+		data = removeSpaces(data)
+		if key == "" {
+			continue
+		}
+		curl.Data[key] = append(curl.Data[key], value)
+	}
+	return
+}
+
 // ParseTheFile 从文件中解析curl
 func ParseTheFile(path string) (curl *CURL, err error) {
 	if path == "" {

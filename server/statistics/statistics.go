@@ -78,7 +78,7 @@ func ReceivingResults(concurrent uint64, ch <-chan *model.RequestResults, wg *sy
 			minTime = data.Time
 		}
 		// 是否请求成功
-		if data.IsSucceed == true {
+		if data.IsSucceed {
 			successNum = successNum + 1
 		} else {
 			failureNum = failureNum + 1
@@ -107,11 +107,11 @@ func ReceivingResults(concurrent uint64, ch <-chan *model.RequestResults, wg *sy
 
 	fmt.Printf("\n\n")
 	fmt.Println("*************************  结果 stat  ****************************")
-	fmt.Println("处理协程数量:", concurrent)
+	fmt.Println("压测Worker数量: ", concurrent)
 	// fmt.Println("处理协程数量:", concurrent, "程序处理总时长:", fmt.Sprintf("%.3f", float64(processingTime/concurrent)/1e9), "秒")
-	fmt.Println("请求总数（并发数*请求数 -c * -n）:", successNum+failureNum, "总请求时间:",
+	fmt.Println("请求总数(并发数*请求数 -c * -n): ", successNum+failureNum, "总请求时间: ",
 		fmt.Sprintf("%.3f", float64(requestTime)/1e9),
-		"秒", "successNum:", successNum, "failureNum:", failureNum)
+		"秒", "successNum: ", successNum, "failureNum: ", failureNum)
 	printTop(requestTimeList)
 	fmt.Println("*************************  结果 end   ****************************")
 	fmt.Printf("\n\n")
@@ -125,9 +125,15 @@ func printTop(requestTimeList []uint64) {
 	var all tools.Uint64List
 	all = requestTimeList
 	sort.Sort(all)
-	fmt.Println("tp90:", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.90)]/1e6)))
-	fmt.Println("tp95:", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.95)]/1e6)))
-	fmt.Println("tp99:", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.99)]/1e6)))
+	fmt.Printf("\nAVG: %sms\n", fmt.Sprintf("%.3f", float64(all.Sum()/1e6)/float64(len(all))))
+	fmt.Printf("TP20: %sms\n", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.2)]/1e6)))
+	fmt.Printf("TP50: %sms\n", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.5)]/1e6)))
+	fmt.Printf("TP75: %sms\n", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.75)]/1e6)))
+	fmt.Printf("TP90: %sms\n", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.90)]/1e6)))
+	fmt.Printf("TP95: %sms\n", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.95)]/1e6)))
+	fmt.Printf("TP99: %sms\n", fmt.Sprintf("%.3f", float64(all[int(float64(len(all))*0.99)]/1e6)))
+
+	// fmt.Println("\nTips: TP，即Top Percentile。以TP90为例，这意味着当系统处理大量请求时，有90%的请求都能在TP90所表示的时间内得到响应。")
 }
 
 // calculateData 计算数据
@@ -164,9 +170,9 @@ func calculateData(concurrent, processingTime, requestTime, maxTime, minTime, su
 func header() {
 	fmt.Printf("\n\n")
 	// 打印的时长都为毫秒 总请数
-	fmt.Println("─────┬───────┬───────┬───────┬────────┬────────┬────────┬────────┬────────┬────────┬────────")
-	fmt.Println(" 耗时│ 并发数│ 成功数│ 失败数│   qps  │最长耗时│最短耗时│平均耗时│下载字节│字节每秒│ 状态码")
-	fmt.Println("─────┼───────┼───────┼───────┼────────┼────────┼────────┼────────┼────────┼────────┼────────")
+	fmt.Println("─────┬───────┬───────┬───────┬────────┬────────┬────────────┬────────────┬────────────┬────────────────┬────────────────┬────────")
+	fmt.Println(" TIME│ WORKER│   SUCC│   FAIL│  RPS.  │  USER  │    AVG.    │  最短耗时  │  最长耗时  │    下载流量    │    下载速率    │ 状态码")
+	fmt.Println("─────┼───────┼───────┼───────┼────────┼────────┼────────────┼────────────┼────────────┼────────────────┼────────────────┼────────")
 	return
 }
 
@@ -194,8 +200,8 @@ func table(successNum, failureNum uint64, errCode *sync.Map,
 		speedStr = p.Sprintf("%d", speed)
 	}
 	// 打印的时长都为毫秒
-	result := fmt.Sprintf("%4.0fs│%7d│%7d│%7d│%8.2f│%8.2f│%8.2f│%8.2f│%8s│%8s│%v",
-		requestTimeFloat, chanIDLen, successNum, failureNum, qps, maxTimeFloat, minTimeFloat, averageTime,
+	result := fmt.Sprintf("%4.0fs│%7d│%7d│%7d│%8.2f│%8d│%10.2fms│%10.2fms│%10.2fms│%10s bytes│%9s byte/s│%v",
+		requestTimeFloat, chanIDLen, successNum, failureNum, qps, (int(qps)+chanIDLen)*5, averageTime, minTimeFloat, maxTimeFloat,
 		receivedBytesStr, speedStr,
 		printMap(errCode))
 	fmt.Println(result)

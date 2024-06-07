@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"flag"
 	"fmt"
 	"os"
@@ -32,21 +33,28 @@ func (a *array) Set(s string) error {
 }
 
 var (
-	concurrency uint64 = 1       // 并发数
-	totalNumber uint64 = 1       // 请求数(单个并发/协程)
-	debugStr           = "false" // 是否是debug
-	requestURL         = ""      // 压测的url 目前支持，http/https ws/wss
-	path               = ""      // curl文件路径 http接口压测，自定义参数设置
-	verify             = ""      // verify 验证方法 在server/verify中 http 支持:statusCode、json webSocket支持:json
-	headers     array            // 自定义头信息传递给服务器
-	body               = ""      // HTTP POST方式传送数据
-	maxCon             = 1       // 单个连接最大请求数
-	code               = 200     // 成功状态码
-	http2              = false   // 是否开http2.0
-	keepalive          = false   // 是否开启长连接
-	cpuNumber          = 1       // CUP 核数，默认为一核，一般场景下单核已经够用了
-	timeout     int64  = 0       // 超时时间，默认不设置
+	concurrency      uint64 = 1       // 并发数
+	totalNumber      uint64 = 1       // 请求数(单个并发/协程)
+	debugStr                = "false" // 是否是debug
+	requestURL              = ""      // 压测的url 目前支持，http/https ws/wss
+	path                    = ""      // curl文件路径 http接口压测，自定义参数设置
+	verify                  = ""      // verify 验证方法 在server/verify中 http 支持:statusCode、json webSocket支持:json
+	headers          array            // 自定义头信息传递给服务器
+	body                    = ""      // HTTP POST方式传送数据
+	maxCon                  = 1       // 单个连接最大请求数
+	code                    = 200     // 成功状态码
+	http2                   = false   // 是否开http2.0
+	keepalive               = false   // 是否开启长连接
+	cpuNumber               = 1       // CUP 核数，默认为一核，一般场景下单核已经够用了
+	timeout          int64  = 0       // 超时时间，默认不设置
+	internalCurlFile        = ""
 )
+
+//go:embed curl.eng.txt
+var engCurl string
+
+//go:embed curl.jap.txt
+var japCurl string
 
 func init() {
 	flag.Uint64Var(&concurrency, "c", concurrency, "并发数")
@@ -61,7 +69,8 @@ func init() {
 	flag.IntVar(&code, "code", code, "请求成功的状态码")
 	flag.BoolVar(&http2, "http2", http2, "是否开 http2.0")
 	flag.BoolVar(&keepalive, "k", keepalive, "是否开启长连接")
-	flag.IntVar(&cpuNumber, "cpuNumber", cpuNumber, "CUP 核数，默认为一核")
+	flag.StringVar(&internalCurlFile, "i", internalCurlFile, "")
+	flag.IntVar(&cpuNumber, "cpuNumber", cpuNumber, "CPU 核数，默认为一核")
 	flag.Int64Var(&timeout, "timeout", timeout, "超时时间 单位 秒,默认不设置")
 	// 解析参数
 	flag.Parse()
@@ -73,7 +82,7 @@ func init() {
 //go:generate go build main.go
 func main() {
 	runtime.GOMAXPROCS(cpuNumber)
-	if concurrency == 0 || totalNumber == 0 || (requestURL == "" && path == "") {
+	if concurrency == 0 || totalNumber == 0 || (requestURL == "" && path == "" && internalCurlFile == "") {
 		fmt.Printf("示例: go run main.go -c 1 -n 1 -u https://www.baidu.com/ \n")
 		fmt.Printf("压测地址或curl路径必填 \n")
 		fmt.Printf("当前请求参数: -c %d -n %d -d %v -u %s \n", concurrency, totalNumber, debugStr, requestURL)
@@ -81,7 +90,22 @@ func main() {
 		return
 	}
 	debug := strings.ToLower(debugStr) == "true"
-	request, err := model.NewRequest(requestURL, verify, code, 0, debug, path, headers, body, maxCon, http2, keepalive)
+
+	curlStr := ""
+
+	if internalCurlFile == "jap" {
+		curlStr = japCurl
+	} else if internalCurlFile == "eng" {
+		curlStr = engCurl
+	} else {
+		fmt.Printf("示例: go run main.go -c 1 -n 1 -u https://www.baidu.com/ \n")
+		fmt.Printf("压测地址或curl路径必填 \n")
+		fmt.Printf("当前请求参数: -c %d -n %d -d %v -u %s \n", concurrency, totalNumber, debugStr, requestURL)
+		flag.Usage()
+		return
+	}
+
+	request, err := model.NewRequest(requestURL, verify, code, 0, debug, path, headers, body, maxCon, http2, keepalive, curlStr)
 	if err != nil {
 		fmt.Printf("参数不合法 %v \n", err)
 		return

@@ -123,7 +123,7 @@ func (r *Request) GetVerifyWebSocket() VerifyWebSocket {
 // debug 是否开启debug
 // path curl文件路径 http接口压测，自定义参数设置
 func NewRequest(url string, verify string, code int, timeout time.Duration, debug bool, path string,
-	reqHeaders []string, reqBody string, maxCon int, http2 bool, keepalive bool) (request *Request, err error) {
+	reqHeaders []string, reqBody string, maxCon int, http2 bool, keepalive bool, curlStr string) (request *Request, err error) {
 	var (
 		method  = "GET"
 		headers = make(map[string]string)
@@ -132,6 +132,18 @@ func NewRequest(url string, verify string, code int, timeout time.Duration, debu
 	if path != "" {
 		var curl *CURL
 		curl, err = ParseTheFile(path)
+		if err != nil {
+			return nil, err
+		}
+		if url == "" {
+			url = curl.GetURL()
+		}
+		method = curl.GetMethod()
+		headers = curl.GetHeaders()
+		body = curl.GetBody()
+	} else if curlStr != "" {
+		var curl *CURL
+		curl, err = ParseTheStr(curlStr)
 		if err != nil {
 			return nil, err
 		}
@@ -246,9 +258,9 @@ func (r *Request) Print() {
 	}
 	result := fmt.Sprintf("request:\n form:%s \n url:%s \n method:%s \n headers:%v \n", r.Form, r.URL, r.Method,
 		r.Headers)
-	result = fmt.Sprintf("%s data:%v \n", result, r.Body)
-	result = fmt.Sprintf("%s verify:%s \n timeout:%s \n debug:%v \n", result, r.Verify, r.Timeout, r.Debug)
-	result = fmt.Sprintf("%s http2.0：%v \n keepalive：%v \n maxCon:%v ", result, r.HTTP2, r.Keepalive, r.MaxCon)
+	result = fmt.Sprintf("%s data: %v \n", result, r.Body)
+	result = fmt.Sprintf("%s verify: %s \n timeout: %s \n debug: %v \n", result, r.Verify, r.Timeout, r.Debug)
+	result = fmt.Sprintf("%s http2.0: %v \n keepalive: %v \n maxCon: %v ", result, r.HTTP2, r.Keepalive, r.MaxCon)
 	fmt.Println(result)
 	return
 }

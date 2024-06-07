@@ -20,3 +20,5 @@ model/modeltest*
 server.go
 vendor
 test.sh
+
+dist/
